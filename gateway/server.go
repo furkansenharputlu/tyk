@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	logrus_syslog "github.com/Sirupsen/logrus/hooks/syslog"
+	"github.com/Sirupsen/logrus/hooks/syslog"
 	logstashHook "github.com/bshuster-repo/logrus-logstash-hook"
 	"github.com/evalphobia/logrus_sentry"
 	"github.com/facebookgo/pidfile"
@@ -28,14 +28,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/justinas/alice"
 	"github.com/lonelycode/osin"
-	newrelic "github.com/newrelic/go-agent"
+	"github.com/newrelic/go-agent"
 	"github.com/rs/cors"
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 	"golang.org/x/net/http2"
 	"rsc.io/letsencrypt"
 
 	"github.com/TykTechnologies/goagain"
-	gas "github.com/TykTechnologies/goautosocket"
+	"github.com/TykTechnologies/goautosocket"
 	"github.com/TykTechnologies/gorpc"
 	"github.com/TykTechnologies/tyk/apidef"
 	"github.com/TykTechnologies/tyk/certs"
@@ -344,20 +344,26 @@ func stripSlashes(next http.Handler) http.Handler {
 }
 
 func controlAPICheckClientCertificate(certLevel string, next http.Handler) http.Handler {
+	fmt.Println("controlAPICheckClientCertificate 1")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if config.Global().Security.ControlAPIUseMutualTLS {
 			if err := CertificateManager.ValidateRequestCertificate(config.Global().Security.Certificates.ControlAPI, r); err != nil {
+				fmt.Println("controlAPICheckClientCertificate 2")
 				doJSONWrite(w, http.StatusForbidden, apiError(err.Error()))
 				return
 			}
 		}
 
+		fmt.Println("controlAPICheckClientCertificate 3")
+
 		next.ServeHTTP(w, r)
+		fmt.Println("controlAPICheckClientCertificate 4")
 	})
 }
 
 // Set up default Tyk control API endpoints - these are global, so need to be added first
 func loadAPIEndpoints(muxer *mux.Router) {
+	fmt.Println("loadAPIEndpoints 1")
 	hostname := config.Global().HostName
 	if config.Global().ControlAPIHostname != "" {
 		hostname = config.Global().ControlAPIHostname
@@ -386,7 +392,9 @@ func loadAPIEndpoints(muxer *mux.Router) {
 	r.HandleFunc("/reload/group", groupResetHandler).Methods("GET")
 	r.HandleFunc("/reload", resetHandler(nil)).Methods("GET")
 
+	fmt.Println("loadAPIEndpoints 2")
 	if !isRPCMode() {
+		fmt.Println("loadAPIEndpoints 3")
 		r.HandleFunc("/org/keys", orgHandler).Methods("GET")
 		r.HandleFunc("/org/keys/{keyName:[^/]*}", orgHandler).Methods("POST", "PUT", "GET", "DELETE")
 		r.HandleFunc("/keys/policy/{keyName}", policyUpdateHandler).Methods("POST")
@@ -399,8 +407,10 @@ func loadAPIEndpoints(muxer *mux.Router) {
 		r.HandleFunc("/oauth/refresh/{keyName}", invalidateOauthRefresh).Methods("DELETE")
 		r.HandleFunc("/cache/{apiID}", invalidateCacheHandler).Methods("DELETE")
 	} else {
+		fmt.Println("loadAPIEndpoints 4")
 		mainLog.Info("Node is slaved, REST API minimised")
 	}
+	fmt.Println("loadAPIEndpoints 5")
 
 	r.HandleFunc("/debug", traceHandler).Methods("POST")
 
@@ -420,16 +430,22 @@ func loadAPIEndpoints(muxer *mux.Router) {
 // client and the owner and is set in the tyk.conf file. This should
 // never be made public!
 func checkIsAPIOwner(next http.Handler) http.Handler {
+	fmt.Println("checkIsAPIOwner 1")
 	secret := config.Global().Secret
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("checkIsAPIOwner 2")
 		tykAuthKey := r.Header.Get("X-Tyk-Authorization")
 		if tykAuthKey != secret {
+			fmt.Println("checkIsAPIOwner 3")
+			fmt.Println("tykAuthKey", tykAuthKey)
+			fmt.Println("secret", secret)
 			// Error
 			mainLog.Warning("Attempted administrative access with invalid or missing key!")
 
 			doJSONWrite(w, http.StatusForbidden, apiError("Forbidden"))
 			return
 		}
+		fmt.Println("checkIsAPIOwner 4")
 		next.ServeHTTP(w, r)
 	})
 }
@@ -1238,10 +1254,13 @@ func startDRL() {
 type mainHandler struct{}
 
 func (_ mainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("(_ mainHandler) ServeHTTP 1")
 	AddNewRelicInstrumentation(NewRelicApplication, mainRouter)
+	fmt.Println("(_ mainHandler) ServeHTTP 2")
 
 	// make request body to be nopCloser and re-readable before serve it through chain of middlewares
 	nopCloseRequestBody(r)
+	fmt.Println("(_ mainHandler) ServeHTTP 3")
 
 	mainRouter.ServeHTTP(w, r)
 }

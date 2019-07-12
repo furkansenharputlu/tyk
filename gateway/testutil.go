@@ -669,6 +669,9 @@ func (s *Test) CreateSession(sGen ...func(s *user.SessionState)) (*user.SessionS
 }
 
 func StartTest(config ...TestConfig) Test {
+	fmt.Println("StartTest")
+	fmt.Println("StartTest")
+	fmt.Println("StartTest")
 	t := Test{}
 	if len(config) > 0 {
 		t.config = config[0]

@@ -31,6 +31,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -1170,8 +1171,10 @@ func resetHandler(fn func()) http.HandlerFunc {
 }
 
 func createKeyHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("createKeyHandler 1")
 	newSession := new(user.SessionState)
 	if err := json.NewDecoder(r.Body).Decode(newSession); err != nil {
+		fmt.Println("createKeyHandler 2")
 		log.WithFields(logrus.Fields{
 			"prefix": "api",
 			"status": "fail",
@@ -1181,14 +1184,21 @@ func createKeyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("createKeyHandler 3")
+
 	newKey := keyGen.GenerateAuthKey(newSession.OrgID)
 	if newSession.HMACEnabled {
+		fmt.Println("createKeyHandler 4")
 		newSession.HmacSecret = keyGen.GenerateHMACSecret()
 	}
+
+	fmt.Println("createKeyHandler 5")
 
 	if newSession.Certificate != "" {
 		newKey = generateToken(newSession.OrgID, newSession.Certificate)
 	}
+
+	fmt.Println("createKeyHandler 6 newkey:", newKey)
 
 	newSession.LastUpdated = strconv.Itoa(int(time.Now().Unix()))
 	newSession.DateCreated = time.Now()
@@ -1208,6 +1218,7 @@ func createKeyHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				// apply polices (if any) and save key
 				if err := applyPoliciesAndSave(newKey, newSession, apiSpec, false); err != nil {
+					fmt.Println("createKeyHandler 7")
 					doJSONWrite(w, http.StatusInternalServerError, apiError("Failed to create key - "+err.Error()))
 					return
 				}
@@ -1218,12 +1229,14 @@ func createKeyHandler(w http.ResponseWriter, r *http.Request) {
 				sessionManager.ResetQuota(newKey, newSession, false)
 				err := sessionManager.UpdateSession(newKey, newSession, -1, false)
 				if err != nil {
+					fmt.Println("createKeyHandler 8")
 					doJSONWrite(w, http.StatusInternalServerError, apiError("Failed to create key - "+err.Error()))
 					return
 				}
 			}
 		}
 	} else {
+		fmt.Println("createKeyHandler 9")
 		if config.Global().AllowMasterKeys {
 			// nothing defined, add key to ALL
 			log.WithFields(logrus.Fields{
@@ -1248,11 +1261,14 @@ func createKeyHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				// apply polices (if any) and save key
 				if err := applyPoliciesAndSave(newKey, newSession, spec, false); err != nil {
+					fmt.Println("createKeyHandler 10")
 					doJSONWrite(w, http.StatusInternalServerError, apiError("Failed to create key - "+err.Error()))
 					return
 				}
 			}
+			fmt.Println("createKeyHandler 11")
 		} else {
+			fmt.Println("createKeyHandler 12")
 			log.WithFields(logrus.Fields{
 				"prefix":      "api",
 				"status":      "error",
@@ -1268,8 +1284,11 @@ func createKeyHandler(w http.ResponseWriter, r *http.Request) {
 			doJSONWrite(w, http.StatusBadRequest, apiError("Failed to create key, keys must have at least one Access Rights record set."))
 			return
 		}
+		fmt.Println("createKeyHandler 13")
 
 	}
+
+	fmt.Println("createKeyHandler 14")
 
 	obj := apiModifyKeySuccess{
 		Action: "added",
@@ -1281,6 +1300,8 @@ func createKeyHandler(w http.ResponseWriter, r *http.Request) {
 	if config.Global().HashKeys {
 		obj.KeyHash = storage.HashKey(newKey)
 	}
+
+	fmt.Println("createKeyHandler 15")
 
 	FireSystemEvent(EventTokenCreated, EventTokenMeta{
 		EventMetaDefault: EventMetaDefault{Message: "Key generated."},

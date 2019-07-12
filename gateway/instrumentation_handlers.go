@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"runtime/debug"
@@ -54,6 +55,7 @@ func InstrumentationMW(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		job := instrument.NewJob("SystemAPICall")
 
+		fmt.Println("InstrumentationMW 1")
 		next.ServeHTTP(w, r)
 		job.EventKv("called", health.Kvs{
 			"from_ip":  request.RealIP(r),
