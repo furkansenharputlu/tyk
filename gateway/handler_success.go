@@ -170,6 +170,7 @@ func (s *SuccessHandler) RecordHit(r *http.Request, timing Latency, code int, re
 			// Get the wire format representation
 			var wireFormatReq bytes.Buffer
 			r.Write(&wireFormatReq)
+			r.Body = ioutil.NopCloser(bytes.NewBuffer(wireFormatReq.Bytes()))
 			rawRequest = base64.StdEncoding.EncodeToString(wireFormatReq.Bytes())
 			// responseCopy, unlike requestCopy, can be nil
 			// here - if the response was cached in
@@ -179,17 +180,12 @@ func (s *SuccessHandler) RecordHit(r *http.Request, timing Latency, code int, re
 			// mw_redis_cache instead? is there a reason not
 			// to include that in the analytics?
 			if responseCopy != nil {
-				contents, err := ioutil.ReadAll(responseCopy.Body)
-				if err != nil {
-					log.Error("Couldn't read response body", err)
-				}
-
 				responseCopy.Body = respBodyReader(r, responseCopy)
 
 				// Get the wire format representation
 				var wireFormatRes bytes.Buffer
 				responseCopy.Write(&wireFormatRes)
-				responseCopy.Body = ioutil.NopCloser(bytes.NewBuffer(contents))
+				responseCopy.Body = ioutil.NopCloser(bytes.NewBuffer(wireFormatRes.Bytes()))
 				rawResponse = base64.StdEncoding.EncodeToString(wireFormatRes.Bytes())
 			}
 		}
